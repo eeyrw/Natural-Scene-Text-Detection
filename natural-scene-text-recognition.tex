@@ -22,14 +22,10 @@
 
 \maketitle
 \begin{abstract}
-https://zhuanlan.zhihu.com/p/38655369
-https://blog.csdn.net/awangpanfeng/article/details/50896303
-https://blog.csdn.net/peaceinmind/article/details/51387367
+本文介绍了经典OCR的方法并分析了其中的一些问题，并引出针对经典方法的存在的问题的基于深度学习的CRNN+CTC模型。介绍了该模型设计理念、具体结构以及性能。同时还介绍了一些常用的自然场景文字的数据集，以便开展应用时供参考。
 \end{abstract}	
 \section{引言}
 文字识别，亦称光学字符识别（OCR: Optical Character Recognition）传统上指对输入扫描文档图像进行分析处理，识别出图像中文字信息。场景文字识别（Scene Text Recognition，STR）指识别自然场景图片中的文字信息。
-
-\section{问题描述}
 自然场景图像中的文字识别，其难度远大于扫描文档图像中的文字识别，因为它的文字展现形式极其丰富：
 
 \begin{itemize}
@@ -38,22 +34,33 @@ https://blog.csdn.net/peaceinmind/article/details/51387367
 	\item 图像中的文字区域还可能会产生变形(透视、仿射变换)、残缺、模糊等现象；
 	\item 自然场景图像的背景极其多样。如文字可以出现在平面、曲面或折皱面上；文字区域附近有复杂的干扰纹理、或者非文字区域有近似文字的纹理，比如沙地、草丛、栅栏、砖墙等。
 \end{itemize}
-\section{CRNN+CTC模型}
+上述的这些特性使得传统的OCR方法难以取得较好的效果。近年来随着硬件性能的不断提高，以深度神经网络为基础的深度学习在计算机视觉等领域取得了巨大的突破，传统的OCR问题也从中获益。本文将回顾过往经典OCR方法，并介绍一种当前主流的基于卷积网络和循环神经网络混合构架的的自然场景文字OCR模型。
+\section{经典OCR方法}
+经典OCR方法的流程如图\ref{fig:classic_ocr}所示，大致分为三个阶段进行。对于自然场景文字而言，这三个阶段无法取得很好的表现。其中就图像预处理而言，自然场景图像光照条件千差万别，几乎无法人工设计出一种极高自适应的预处理算法；对于文字（字符）提取，自然场景文字存在各种光学畸变，难以用传统的方法分割提取；分类器需要提供字符集别的标注的数据集才能训练使用，自然场景文字往往变化多端，若要逐字标注可行性非常低。基于CRNN+CTC的模型很好的克服了这些问题。
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=1\linewidth]{images/classic_ocr}
+	\caption{经典OCR方法}
+	\label{fig:classic_ocr}
+\end{figure}
+\section{基于深度学习的CRNN+CTC模型}
 使用深度学习方法解决自然场景文字识别的模型非常多，其中有基于注意力机制的模型FAN网络(Focusing Attention Network)\cite{FAN}以及应用注意力机制的2D非规整文字网络\cite{2D-ATTN}。其中CRNN(Convolutional Recurrent Neural Network）\cite{CRNN}是目前较为流行的模型，可识别较长的文本序列，为CRNN+CTC的网络结构，模型包含CNN特征提取层和BLSTM(Bi-direct Long Short Term Memory)\cite{BLSTM}序列特征提取层，能够进行端到端的联合训练。图\ref{fig:blstm}为BLSTM的具体结构。模型的感受野如图\ref{fig:receptive_field}所示，一个字符可能被多个BLSTM单元所覆盖，故需要引入CTC转译。 模型利用BLSTM和CTC\cite{Graves:2006:CTC:1143844.1143891}部件学习字符图像中的上下文关系， 从而有效提升文本识别准确率，使得模型更加鲁棒。预测过程中，前端使用标准的CNN网络提取文本图像的特征，利用BLSTM将特征向量进行融合以提取字符序列的上下文特征，然后得到每列特征的概率分布，最后通过CTC转译进行预测得到文本序列。
-\begin{figure}
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=1\linewidth]{images/blstm}
+	\caption{BLSTM}
+	\label{fig:blstm}
+\end{figure}
+
+\begin{figure}[H]
 	\centering
 	\includegraphics[width=0.7\linewidth]{images/crnn_ctc}
 	\caption{CRNN+CTC模型构架}
 	\label{fig:crnn_ctc}
 \end{figure}
-
-\begin{figure}
-	\centering
-	\includegraphics[width=0.7\linewidth]{images/blstm}
-	\caption{BLSTM}
-	\label{fig:blstm}
-\end{figure}
-\begin{figure}
+\begin{figure}[H]
 	\centering
 	\includegraphics[width=0.5\linewidth]{images/receptive_field}
 	\caption{模型感受野}
@@ -61,7 +68,22 @@ https://blog.csdn.net/peaceinmind/article/details/51387367
 \end{figure}
 
 
-\section{训练数据集}
+\begin{table}[H]
+		\centering
+	\includegraphics[width=0.6\linewidth]{images/crnn_ctc_network}
+	\caption{模型具体结构}
+	\label{table:crnn_ctc_network}
+\end{table}
+模型的具体结构如表\ref{table:crnn_ctc_network}所示，其中k代表kernel，即卷积核的尺寸参数；s代表stride，即卷积跳过的间隔大小，p代表padding，即卷积时所用的边缘补齐尺寸。
+\begin{table}[H]
+	\centering
+	\includegraphics[width=1\linewidth]{images/crnn_ctc_performance}
+	\caption{模型性能跑分}
+	\label{table:crnn_ctc_performance}
+\end{table}
+模型的性能如表\ref{table:crnn_ctc_network}所示，第二行50，1k，50k及Full表示的是词典的使用情况，而None表示没有用词典。[22]项带星号的测试结果虽然没有用词典，但是最终输出结果被限制到一个90k的词典上，故表现较优。
+
+\section{常用训练数据集}
 目前主流的针对中文汉字的自然场文字识别的数据集主要有Chinese Text in the Wild(CTW)\cite{CTW}及Reading Chinese Text in the Wild(RCTW-17)\cite{RCTW-17}。
 \subsection{Chinese Text in the Wild(CTW)}
 该数据集包含32285张图像，1018402个中文字符(来自于腾讯街景), 包含平面文本，凸起文本，城市文本，农村文本，低亮度文本，远处文本，部分遮挡文本。图像大小2048*2048，数据集大小为31GB。以(8:1:1)的比例将数据集分为训练集(25887张图像，812872个汉字)，测试集(3269张图像，103519个汉字)，验证集(3129张图像，103519个汉字)。图\ref{fig:ctw-example}为CTW数据的样张及标注示例。
@@ -81,8 +103,8 @@ https://blog.csdn.net/peaceinmind/article/details/51387367
 	\label{fig:rctw17_example}
 \end{figure}
 
-\section{总结及展望}
-本文使用了HMM建模了拼音序列转汉字序列的标注问题，给出了具体的实验方案并开展了实验，在序列长度小于10的情况下得到近30\%错误率的性能，具有较高的实用价值。值得注意的是模型还有很大的改进空间，例如HMM的状态序列可以用二阶马尔科夫链描述，相对于只考虑前后关系的一阶马尔科夫链会有更好的表现。
+\section{总结}
+CRNN+CTC是一种端到端模型，不需要图像预处理；统一的损失函数，模型可以端到端训练；训练集不需要字符级别的标注；对于复杂场景下的文本有更好的鲁棒性。
 
 
 \printbibliography[heading=bibliography,title=参考文献]
